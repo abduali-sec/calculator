@@ -1,0 +1,11 @@
+# Node / IDE
+node_modules/
+.vscode/
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
