@@ -30,6 +30,14 @@ body{margin:0;background:var(--bg);color:var(--text);-webkit-font-smoothing:anti
 .btn{background:#000;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
 .muted{color:var(--muted)}
 
+.todo-preview a{color:var(--accent);text-decoration:underline}
+.card.small{padding:8px}
+.timer{display:flex;align-items:center;gap:8px}
+.pom-bar{background:#f0f0f0;height:12px;border-radius:6px;overflow:hidden}
+.pom-bar > div{height:100%;background:#111;width:0%}
+.field[type=date]{padding:6px}
+.table td input.field{width:70px}
+
 /* focus and toast */
 .cats li:focus{outline:3px solid rgba(0,0,0,0.08)}
 .result{cursor:pointer}

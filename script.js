@@ -46,7 +46,8 @@ function renderCategory(cat){ clearPanel(); switch(cat){
   case 'programmer': renderProgrammer(); break
   case 'converter': renderConverter(); break
   case 'graphical': renderGraphical(); break
-  case 'geometry': renderPlaceholder('Geometry calculator coming soon'); break
+  case 'geometry': renderGeometry(); break
+  case 'todo': renderTodo(); break
   case 'algebra': renderAlgebra(); break
   case 'matrix': renderMatrix(); break
   case 'stats': renderStats(); break
@@ -531,6 +532,372 @@ function renderConverter(){
 
 function renderPlaceholder(text){ panel.innerHTML = `<div class="card"><h3>${text}</h3><p class="muted">Will be added in future updates.</p></div>` }
 
+// --- Geometry calculator ---
+function renderGeometry(){
+  panel.innerHTML = `
+    <div class="card">
+      <h3>📐 Geometry</h3>
+      <p class="muted">Area and perimeter for common shapes.</p>
+      <div class="row"><select id="shape" class="field"><option value="circle">Circle</option><option value="rect">Rectangle</option><option value="triangle">Triangle</option></select></div>
+      <div id="shapeBody" style="margin-top:10px"></div>
+    </div>
+  `
+  const shape = panel.querySelector('#shape')
+  const body = panel.querySelector('#shapeBody')
+  function renderShape(){
+    const s = shape.value
+    if(s==='circle'){
+      body.innerHTML = `<div class=\"row\"><input id=\"r\" class=\"field\" placeholder=\"radius\"/></div><div class=\"row\" style=\"margin-top:8px\"><button id=\"calc\" class=\"btn\">Compute</button><div id=\"out\" class=\"muted\" style=\"margin-left:12px\"></div></div>`
+      body.querySelector('#calc').addEventListener('click', ()=>{ const r = parseFloat(body.querySelector('#r').value); if(isNaN(r)){ body.querySelector('#out').textContent='Invalid' ; return } const area = Math.PI*r*r; const per = 2*Math.PI*r; body.querySelector('#out').textContent = `Area=${area.toFixed(4)} Perimeter=${per.toFixed(4)}` })
+    }else if(s==='rect'){
+      body.innerHTML = `<div class=\"row\"><input id=\"w\" class=\"field\" placeholder=\"width\"/><input id=\"h\" class=\"field\" placeholder=\"height\"/></div><div class=\"row\" style=\"margin-top:8px\"><button id=\"calc\" class=\"btn\">Compute</button><div id=\"out\" class=\"muted\" style=\"margin-left:12px\"></div></div>`
+      body.querySelector('#calc').addEventListener('click', ()=>{ const w = parseFloat(body.querySelector('#w').value), h = parseFloat(body.querySelector('#h').value); if(isNaN(w)||isNaN(h)){ body.querySelector('#out').textContent='Invalid'; return } body.querySelector('#out').textContent = `Area=${(w*h).toFixed(4)} Perimeter=${(2*(w+h)).toFixed(4)}` })
+    }else{
+      body.innerHTML = `<div class=\"row\"><input id=\"a\" class=\"field\" placeholder=\"side a\"/><input id=\"b\" class=\"field\" placeholder=\"side b\"/><input id=\"c\" class=\"field\" placeholder=\"side c\"/></div><div class=\"row\" style=\"margin-top:8px\"><button id=\"calc\" class=\"btn\">Compute</button><div id=\"out\" class=\"muted\" style=\"margin-left:12px\"></div></div>`
+      body.querySelector('#calc').addEventListener('click', ()=>{ const a=parseFloat(body.querySelector('#a').value), b=parseFloat(body.querySelector('#b').value), c=parseFloat(body.querySelector('#c').value); const out = body.querySelector('#out'); if([a,b,c].some(x=>isNaN(x))){ out.textContent='Invalid'; return } const s=(a+b+c)/2; const area=Math.sqrt(Math.max(0,s*(s-a)*(s-b)*(s-c))); out.textContent = `Area=${area.toFixed(4)} Perimeter=${(a+b+c).toFixed(4)}` })
+    }
+  }
+  shape.addEventListener('change', renderShape)
+  renderShape()
+}
+
+// --- To-Do module ---
+function renderTodo(){
+  panel.innerHTML = `
+    <div class="card">
+      <h3>📝 To-Do</h3>
+      <div class="row" style="gap:8px">
+        <input id="tTitle" class="field" placeholder="Title" />
+        <select id="tType" class="field"><option value="simple">Simple</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="goal">Goal</option><option value="priority">Priority</option><option value="shopping">Shopping</option><option value="study">Study</option><option value="dev">Developer</option><option value="habit">Habit</option></select>
+      </div>
+      <div class="row" style="margin-top:8px"><input id="tNotes" class="field" placeholder="Notes / checklist (one per line for subtasks)"/></div>
+      <div class="row" style="margin-top:8px">
+        <select id="tPriority" class="field"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+        <input id="tDue" type="date" class="field" />
+        <input id="tAssignee" class="field" placeholder="Assignee (team)" />
+        <input id="tProject" class="field" placeholder="Project" />
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="tRecurrence" class="field" placeholder="Recurrence (RRULE), e.g. FREQ=WEEKLY;BYDAY=MO,WE,FR" />
+        <button id="recDaily" class="btn">Daily</button>
+        <button id="recWeekly" class="btn">Weekly</button>
+        <button id="recWeekdays" class="btn">Weekdays</button>
+        <button id="openRrule" class="btn">Open RRULE Builder</button>
+      </div>
+      <div id="rruleBuilder" style="display:none;margin-top:8px" class="card small">
+        <div class="row"><label>Freq:</label><select id="rbFreq" class="field"><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></select> <label>Interval</label><input id="rbInterval" class="field" type="number" value="1" style="width:80px"/></div>
+        <div class="row" style="margin-top:8px"><label>Weekdays:</label><div style="display:flex;gap:6px"><label><input type="checkbox" value="MO" class="rbDay"/>Mo</label><label><input type="checkbox" value="TU" class="rbDay"/>Tu</label><label><input type="checkbox" value="WE" class="rbDay"/>We</label><label><input type="checkbox" value="TH" class="rbDay"/>Th</label><label><input type="checkbox" value="FR" class="rbDay"/>Fr</label><label><input type="checkbox" value="SA" class="rbDay"/>Sa</label><label><input type="checkbox" value="SU" class="rbDay"/>Su</label></div></div>
+        <div class="row" style="margin-top:8px"><label>Count</label><input id="rbCount" class="field" type="number" style="width:100px"/> <label>Until</label><input id="rbUntil" type="date" class="field"/></div>
+        <div class="row" style="margin-top:8px"><button id="rbApply" class="btn">Apply</button> <button id="rbPreview" class="btn">Preview Next</button> <div id="rbPreviewOut" class="muted" style="margin-left:8px"></div></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="optSound"/> Sound</label>
+        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="optNotify"/> Desktop Notify</label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="addTask" class="btn" title="Add task">Add Task</button>
+        <button id="showKanban" class="btn" title="Open Kanban">Kanban</button>
+        <button id="showEisen" class="btn" title="Eisenhower matrix">Eisenhower</button>
+        <button id="showCal" class="btn" title="Group by due date">Calendar</button>
+        <button id="exportJson" class="btn" title="Export tasks as JSON">Export JSON</button>
+        <button id="exportCsv" class="btn" title="Export tasks as CSV">Export CSV</button>
+        <button id="importBtn" class="btn" title="Import tasks from JSON/CSV">Import</button>
+        <button id="fileImport" class="btn" title="Import from file">Import File</button>
+        <button id="shareBtn" class="btn" title="Generate shareable URL">Share</button>
+        <button id="pomHistory" class="btn" title="Pomodoro history">Pom History</button>
+        <div id="todoMsg" class="muted" style="margin-left:12px"></div>
+      </div>
+      <input id="filePicker" type="file" accept="application/json,text/csv" style="display:none" />
+      <div id="todoPanel" style="margin-top:12px"></div>
+    </div>
+  `
+  // storage
+  const KEY = 'todo_tasks_v1'
+  function loadTasks(){ try{ return JSON.parse(localStorage.getItem(KEY) || '[]') }catch(e){ return [] } }
+  function saveTasks(tasks){ localStorage.setItem(KEY, JSON.stringify(tasks)) }
+  let tasks = loadTasks()
+
+  const tTitle = panel.querySelector('#tTitle'), tNotes = panel.querySelector('#tNotes'), tType = panel.querySelector('#tType'), tPriority = panel.querySelector('#tPriority'), tDue = panel.querySelector('#tDue'), tAssignee = panel.querySelector('#tAssignee'), tProject = panel.querySelector('#tProject'), tRecurrence = panel.querySelector('#tRecurrence'), recDaily = panel.querySelector('#recDaily'), recWeekly = panel.querySelector('#recWeekly'), recWeekdays = panel.querySelector('#recWeekdays'), optSound = panel.querySelector('#optSound'), optNotify = panel.querySelector('#optNotify'), filePicker = panel.querySelector('#filePicker'), fileImportBtn = panel.querySelector('#fileImport'), pomHistoryBtn = panel.querySelector('#pomHistory'), todoMsg = panel.querySelector('#todoMsg'), todoPanel = panel.querySelector('#todoPanel')
+
+  // settings
+  const SKEY = 'todo_settings_v1'
+  function loadSettings(){ try{ return JSON.parse(localStorage.getItem(SKEY) || '{}') }catch(e){ return {} } }
+  function saveSettings(s){ localStorage.setItem(SKEY, JSON.stringify(s)) }
+  const settings = Object.assign({sound:true, notify:false}, loadSettings())
+  optSound.checked = !!settings.sound
+  optNotify.checked = !!settings.notify
+  optSound.addEventListener('change', ()=>{ settings.sound = optSound.checked; saveSettings(settings) })
+  optNotify.addEventListener('change', ()=>{ settings.notify = optNotify.checked; saveSettings(settings); if(settings.notify && Notification && Notification.permission!=='granted'){ Notification.requestPermission() } })
+
+  // recurrence helper buttons
+  recDaily.addEventListener('click', ()=>{ tRecurrence.value = 'FREQ=DAILY' })
+  recWeekly.addEventListener('click', ()=>{ tRecurrence.value = 'FREQ=WEEKLY' })
+  recWeekdays.addEventListener('click', ()=>{ tRecurrence.value = 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR' })
+  // RRULE Builder toggle
+  const openRrule = panel.querySelector('#openRrule')
+  const rruleBuilder = panel.querySelector('#rruleBuilder')
+  const rbFreq = panel.querySelector('#rbFreq')
+  const rbInterval = panel.querySelector('#rbInterval')
+  const rbDayChecks = Array.from(panel.querySelectorAll('.rbDay'))
+  const rbCount = panel.querySelector('#rbCount')
+  const rbUntil = panel.querySelector('#rbUntil')
+  const rbApply = panel.querySelector('#rbApply')
+  const rbPreview = panel.querySelector('#rbPreview')
+  const rbPreviewOut = panel.querySelector('#rbPreviewOut')
+  openRrule.addEventListener('click', ()=>{ rruleBuilder.style.display = rruleBuilder.style.display==='none' ? 'block' : 'none' })
+  rbApply.addEventListener('click', ()=>{
+    // build rrule string
+    const opts = { freq: RRule[rbFreq.value], interval: parseInt(rbInterval.value)||1 }
+    const byweekday = rbDayChecks.filter(c=>c.checked).map(c=>RRule[c.value])
+    if(byweekday.length) opts.byweekday = byweekday
+    if(rbCount.value) opts.count = parseInt(rbCount.value)
+    if(rbUntil.value) opts.until = new Date(rbUntil.value)
+    try{ const rule = new RRule(opts); tRecurrence.value = rule.toString(); rbPreviewOut.textContent = 'Applied'; }catch(e){ rbPreviewOut.textContent = 'Error' }
+  })
+  rbPreview.addEventListener('click', ()=>{
+    try{ const txt = tRecurrence.value.trim(); if(!txt){ rbPreviewOut.textContent='No RRULE'; return }
+      const rule = RRule.fromString(txt); const next = rule.all((date, i)=> i<5)
+      rbPreviewOut.textContent = next.map(d=>d.toISOString().slice(0,16).replace('T',' ')).join(', ')
+    }catch(e){ rbPreviewOut.textContent='Invalid' }
+  })
+
+  // file import handler
+  fileImportBtn.addEventListener('click', ()=> filePicker.click())
+  filePicker.addEventListener('change', (ev)=>{
+    const f = ev.target.files && ev.target.files[0]; if(!f) return
+    const rdr = new FileReader(); rdr.onload = ()=>{ parseAndImport(String(rdr.result)) }; rdr.readAsText(f)
+  })
+
+  // small helper to parse/import content
+  function parseAndImport(input){ if(!input) return; try{ if(input.includes('#share=')){ const frag = input.split('#share=')[1]; const json = atob(decodeURIComponent(frag)); const arr = JSON.parse(json); tasks = arr.concat(tasks); saveTasks(tasks); renderList(); todoMsg.textContent='Imported from share URL'; return } if(input.trim().startsWith('{') || input.trim().startsWith('[')){ const arr = JSON.parse(input); tasks = arr.concat(tasks); saveTasks(tasks); renderList(); todoMsg.textContent='Imported JSON'; return } const lines = input.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length); if(lines[0].includes(',')){ const cols = lines[0].split(',').map(c=>c.trim()); const out = []; for(let i=1;i<lines.length;i++){ const vals = lines[i].split(','); const obj = {}; for(let j=0;j<cols.length;j++) obj[cols[j]] = vals[j] ? vals[j].replace(/^"|"$/g,'') : ''; obj.id = obj.id || ('t'+Date.now()+i); out.push(obj) } tasks = out.concat(tasks); saveTasks(tasks); renderList(); todoMsg.textContent='Imported CSV'; return } }catch(e){ todoMsg.textContent='Import error' } }
+
+  // Pomodoro history
+  const POM_HIST = 'pom_history_v1'
+  function loadPomHistory(){ try{ return JSON.parse(localStorage.getItem(POM_HIST) || '[]') }catch(e){ return [] } }
+  function savePomHistory(h){ localStorage.setItem(POM_HIST, JSON.stringify(h)) }
+  let pomHistory = loadPomHistory()
+
+  function pushPomSession(taskId, seconds){ pomHistory.unshift({taskId, seconds, ts: Date.now()}); if(pomHistory.length>1000) pomHistory.pop(); savePomHistory(pomHistory) }
+
+  pomHistoryBtn.addEventListener('click', ()=>{ renderPomHistory() })
+
+  function renderPomHistory(){ todoPanel.innerHTML=''; const card = document.createElement('div'); card.className='card'; card.innerHTML = `<h4>Pomodoro History</h4><canvas id="pomCanvas" width="800" height="240" style="max-width:100%"></canvas>`; todoPanel.appendChild(card); const cvs = card.querySelector('#pomCanvas'); const ctx = cvs.getContext('2d'); // aggregate by day
+    // build per-task per-day aggregation
+    const daysSet = new Set()
+    const tasksMap = {}
+    tasks.forEach(t=> tasksMap[t.id]=t.title)
+    pomHistory.forEach(s=>{ const d = new Date(s.ts).toISOString().slice(0,10); daysSet.add(d) })
+    const days = Array.from(daysSet).sort()
+    const taskIds = Array.from(new Set(pomHistory.map(s=>s.taskId)))
+    const data = {} // data[taskId][day]=minutes
+    taskIds.forEach(id=>{ data[id]={}; days.forEach(d=>data[id][d]=0) })
+    pomHistory.forEach(s=>{ const d = new Date(s.ts).toISOString().slice(0,10); data[s.taskId][d] = (data[s.taskId][d]||0) + s.seconds/60 })
+    const W = cvs.width, H = cvs.height; ctx.clearRect(0,0,W,H);
+    if(days.length===0){ ctx.fillText('No history', 10,20); return }
+    // draw grouped bars per day, stacked by task
+    const groupW = Math.max(30, Math.floor((W-40)/days.length))
+    const maxv = Math.max(...days.map(d=> taskIds.reduce((s,id)=>s + (data[id][d]||0),0) ))
+    const colors = ['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2']
+    days.forEach((d,i)=>{
+      let x = 20 + i*groupW
+      let yBottom = H-30
+      let stack = 0
+      taskIds.forEach((id,ti)=>{
+        const val = data[id][d]||0
+        if(val<=0) return
+        const h = Math.round((val/maxv) * (H-60))
+        ctx.fillStyle = colors[ti % colors.length]
+        ctx.fillRect(x, yBottom-h, groupW-6, h)
+        yBottom -= h
+      })
+      ctx.fillStyle='#666'; ctx.fillText(d, x, H-8)
+    })
+    // add legend and export CSV
+    const legend = document.createElement('div'); legend.style.marginTop='8px'; legend.innerHTML = '<strong>Legend</strong> '
+    taskIds.forEach((id,ti)=>{ const span = document.createElement('div'); span.style.display='inline-block'; span.style.marginRight='8px'; span.innerHTML = `<span style="display:inline-block;width:12px;height:12px;background:${colors[ti%colors.length]};vertical-align:middle;margin-right:4px"></span>${tasksMap[id]||id}`; legend.appendChild(span) })
+    card.appendChild(legend)
+    const expBtn = document.createElement('button'); expBtn.className='btn'; expBtn.textContent='Export CSV'; expBtn.style.marginTop='8px'; expBtn.addEventListener('click', ()=>{
+      const cols = ['date'].concat(taskIds.map(id=>`task_${id}`))
+      const rows = days.map(d=> [d].concat(taskIds.map(id=> (data[id][d]||0).toFixed(2) )) )
+      const csv = [cols.join(',')].concat(rows.map(r=> r.join(','))).join('\n')
+      const blob = new Blob([csv], {type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='pom_history.csv'; a.click(); URL.revokeObjectURL(url)
+    })
+    card.appendChild(expBtn)
+  }
+
+  function renderList(){
+    todoPanel.innerHTML = ''
+    const list = document.createElement('div')
+    list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='8px'
+    tasks.forEach(t=>{
+      const el = document.createElement('div'); el.className='card'; el.style.padding='8px'; el.draggable=true
+      // compute next occurrence if recurrence present
+      let nextInfo = ''
+      if(t.recurrence && typeof RRule !== 'undefined'){
+        try{ const rule = RRule.fromString(t.recurrence); const next = rule.after(new Date(), true); if(next) nextInfo = ' Next: '+ next.toISOString().slice(0,16).replace('T',' ')}catch(e){ nextInfo = '' }
+      }
+      el.innerHTML = `<strong>${t.title}</strong> <span class=\"muted\">[${t.type}]</span><div style=\"margin-top:6px\">${t.notes? t.notes.replace(/\n/g,'<br/>') : ''}</div><div class=\"muted\" style=\"margin-top:6px\">Priority: ${t.priority} ${t.due? ' Due:'+t.due : ''} ${t.recurrence? ' Recurrence' : ''}${nextInfo} ${t.project? ' Project:'+t.project : ''} ${t.assignee? ' Assignee:'+t.assignee : ''}</div><div style=\"margin-top:6px\"><button class=\"btn\" data-id=\"${t.id}\" data-act=\"edit\">Edit</button> <button class=\"btn\" data-id=\"${t.id}\" data-act=\"del\">Delete</button> <button class=\"btn\" data-id=\"${t.id}\" data-act=\"pom\">Pomodoro</button></div>`
+      // drag data
+      el.addEventListener('dragstart', (ev)=>{ ev.dataTransfer.setData('text/plain', t.id) })
+      list.appendChild(el)
+    })
+    todoPanel.appendChild(list)
+    // actions
+    todoPanel.querySelectorAll('button').forEach(b=>{ b.addEventListener('click', (ev)=>{
+      const id = ev.target.dataset.id; const act = ev.target.dataset.act
+      if(act==='del'){ tasks = tasks.filter(x=>x.id!==id); saveTasks(tasks); renderList(); todoMsg.textContent='Deleted' }
+      if(act==='edit'){ const task = tasks.find(x=>x.id===id); if(task){ tTitle.value=task.title; tNotes.value=task.notes; tType.value=task.type; tPriority.value=task.priority; tDue.value=task.due||''; tAssignee.value=task.assignee||''; tProject.value=task.project||''; todoMsg.textContent='Loaded for edit'; tasks = tasks.filter(x=>x.id!==id); saveTasks(tasks); renderList() } }
+      if(act==='pom'){ startPomodoro(id) }
+    }) })
+  }
+
+  function addTask(){
+    const title = tTitle.value.trim(); if(!title){ todoMsg.textContent='Title required'; return }
+    const notes = tNotes.value.trim()
+    const recurRaw = tRecurrence.value.trim()
+    let recur = null
+    if(recurRaw){ try{ if(typeof RRule !== 'undefined'){ const r = RRule.fromString(recurRaw); recur = r.toString() } else { recur = recurRaw } }catch(e){ todoMsg.textContent='Bad recurrence format'; return } }
+    const obj = { id: 't'+Date.now(), title, notes, type: tType.value, priority: tPriority.value, due: tDue.value||null, assignee: tAssignee.value||null, project: tProject.value||null, recurrence: recur, status:'todo', created: new Date().toISOString(), pomSessions:0, pomTotalSeconds:0 }
+    tasks.unshift(obj); saveTasks(tasks); renderList(); todoMsg.textContent='Added'; tTitle.value=''; tNotes.value=''
+  }
+  panel.querySelector('#addTask').addEventListener('click', addTask)
+
+  // Export/Import/Share buttons (added to UI if present)
+  const exportJsonBtn = panel.querySelector('#exportJson')
+  const exportCsvBtn = panel.querySelector('#exportCsv')
+  const importBtn = panel.querySelector('#importBtn')
+  const shareBtn = panel.querySelector('#shareBtn')
+  if(exportJsonBtn){ exportJsonBtn.addEventListener('click', ()=>{
+    const payload = JSON.stringify(tasks, null, 2)
+    const blob = new Blob([payload], {type:'application/json'})
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href=url; a.download='tasks.json'; a.click(); URL.revokeObjectURL(url); todoMsg.textContent='Exported JSON'
+  }) }
+  if(exportCsvBtn){ exportCsvBtn.addEventListener('click', ()=>{
+    const cols = ['id','title','notes','type','priority','due','assignee','project','status','created','pomSessions','pomTotalSeconds','recurrence']
+    const rows = tasks.map(t=> cols.map(c=>`"${String(t[c]||'').replace(/"/g,'""')}"`).join(','))
+    const csv = cols.join(',')+'\n'+rows.join('\n')
+    const blob = new Blob([csv], {type:'text/csv'})
+    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='tasks.csv'; a.click(); URL.revokeObjectURL(url); todoMsg.textContent='Exported CSV'
+  }) }
+  if(importBtn){ importBtn.addEventListener('click', ()=>{
+    const input = prompt('Paste JSON or CSV here (or a share URL)')
+    if(!input) return
+    try{
+      if(input.includes('#share=')){
+        const frag = input.split('#share=')[1]
+        const json = atob(decodeURIComponent(frag))
+        const arr = JSON.parse(json)
+        tasks = arr.concat(tasks); saveTasks(tasks); renderList(); todoMsg.textContent='Imported from share URL'; return
+      }
+      if(input.trim().startsWith('{') || input.trim().startsWith('[')){
+        const arr = JSON.parse(input)
+        tasks = arr.concat(tasks); saveTasks(tasks); renderList(); todoMsg.textContent='Imported JSON'; return
+      }
+      const lines = input.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length)
+      if(lines[0].includes(',')){
+        const cols = lines[0].split(',').map(c=>c.trim())
+        const out = []
+        for(let i=1;i<lines.length;i++){
+          const vals = lines[i].split(',')
+          const obj = {}
+          for(let j=0;j<cols.length;j++) obj[cols[j]] = vals[j] ? vals[j].replace(/^"|"$/g,'') : ''
+          obj.id = obj.id || ('t'+Date.now()+i)
+          out.push(obj)
+        }
+        tasks = out.concat(tasks); saveTasks(tasks); renderList(); todoMsg.textContent='Imported CSV'; return
+      }
+    }catch(e){ todoMsg.textContent='Import error' }
+  }) }
+  if(shareBtn){ shareBtn.addEventListener('click', ()=>{
+    // fallback share: first try Gist if token provided, else copy fragment URL
+    const token = prompt('Enter GitHub token for Gist upload (leave empty to use share URL)')
+    const json = JSON.stringify(tasks)
+    if(token){
+      // create gist
+      fetch('https://api.github.com/gists', { method:'POST', headers: { Authorization: 'token '+token, 'Content-Type':'application/json' }, body: JSON.stringify({ public:false, files: { 'tasks.json': { content: json } }, description: 'Shared tasks' }) }).then(r=>r.json()).then(j=>{
+        if(j && j.html_url){ navigator.clipboard.writeText(j.html_url); todoMsg.textContent='Gist created and URL copied' } else { todoMsg.textContent='Gist failed' }
+      }).catch(e=>{ todoMsg.textContent='Gist error' })
+    } else {
+      const frag = encodeURIComponent(btoa(json))
+      const url = location.href.split('#')[0] + '#share=' + frag
+      navigator.clipboard.writeText(url).then(()=> todoMsg.textContent='Share URL copied to clipboard')
+    }
+  }) }
+
+  // Kanban view
+  panel.querySelector('#showKanban').addEventListener('click', ()=>{
+    todoPanel.innerHTML=''
+    const cols = ['todo','inprogress','done']
+    const container = document.createElement('div'); container.style.display='flex'; container.style.gap='12px'
+    cols.forEach(c=>{
+      const col = document.createElement('div'); col.style.flex='1'; col.style.minHeight='200px'; col.style.border='1px dashed #ccc'; col.style.padding='8px'
+      const hdr = document.createElement('div'); hdr.innerHTML = `<strong>${c.toUpperCase()}</strong>`; col.appendChild(hdr)
+      const list = document.createElement('div'); list.dataset.col=c; list.style.minHeight='150px'
+      list.addEventListener('dragover', ev=>{ ev.preventDefault() })
+      list.addEventListener('drop', ev=>{ const id = ev.dataTransfer.getData('text/plain'); const task = tasks.find(x=>x.id===id); if(task){ task.status = list.dataset.col; saveTasks(tasks); renderTodo(); } })
+      col.appendChild(list); container.appendChild(col)
+    })
+    todoPanel.appendChild(container)
+    // populate
+    tasks.forEach(t=>{
+      const node = document.createElement('div'); node.className='card'; node.style.marginTop='6px'; node.textContent = t.title; node.draggable=true; node.addEventListener('dragstart', ev=>ev.dataTransfer.setData('text/plain', t.id))
+      const col = todoPanel.querySelector(`[data-col="${t.status||'todo'}"]`)
+      if(col) col.appendChild(node)
+    })
+  })
+
+  // Eisenhower
+  panel.querySelector('#showEisen').addEventListener('click', ()=>{
+    todoPanel.innerHTML=''
+    const wrap = document.createElement('div'); wrap.style.display='grid'; wrap.style.gridTemplateColumns='1fr 1fr'; wrap.style.gap='8px'
+    const q = ['Urgent+Important','Not Urgent+Important','Urgent+Not Important','Not Urgent+Not Important']
+    q.forEach((label,i)=>{ const box=document.createElement('div'); box.className='card'; box.innerHTML=`<strong>${label}</strong>`; box.style.minHeight='120px'; wrap.appendChild(box) })
+    // distribute
+    tasks.forEach(t=>{
+      const dueSoon = t.due && (new Date(t.due) - Date.now()) < 48*3600*1000
+      const important = t.priority==='high'
+      const idx = important ? (dueSoon?0:1) : (dueSoon?2:3)
+      const node = document.createElement('div'); node.textContent = t.title; wrap.children[idx].appendChild(node)
+    })
+    todoPanel.appendChild(wrap)
+  })
+
+  // Calendar (simple grouped by date)
+  panel.querySelector('#showCal').addEventListener('click', ()=>{
+    todoPanel.innerHTML=''
+    const byDate = {}
+    tasks.forEach(t=>{ const k = t.due||'No date'; (byDate[k]||(byDate[k]=[])).push(t) })
+    Object.keys(byDate).sort().forEach(d=>{ const card=document.createElement('div'); card.className='card'; card.innerHTML=`<strong>${d}</strong><div>${byDate[d].map(x=>x.title).join('<br/>')}</div>`; todoPanel.appendChild(card) })
+  })
+
+  // Pomodoro
+  let pomTimer = null, pomRemaining = 0, pomTaskId = null
+  function formatTime(s){ const m = Math.floor(s/60); const sec = s%60; return `${m}:${sec.toString().padStart(2,'0')}` }
+
+  // create visual timer area (insert before todoPanel)
+  const timerArea = document.createElement('div'); timerArea.style.marginTop='12px'; timerArea.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><div id=\"pomDisplay\" class=\"muted\">Idle</div><div style=\"flex:1;background:#f0f0f0;height:12px;border-radius:6px;overflow:hidden\"><div id=\"pomBar\" style=\"height:100%;width:0%;background:#333\"></div></div><button id=\"pomStart\" class=\"btn\">Start</button><button id=\"pomPause\" class=\"btn\">Pause</button><button id=\"pomStop\" class=\"btn\">Stop</button></div>`
+  todoPanel.parentNode.insertBefore(timerArea, todoPanel)
+  const pomDisplay = timerArea.querySelector('#pomDisplay'), pomBar = timerArea.querySelector('#pomBar'), pomStartBtn = timerArea.querySelector('#pomStart'), pomPauseBtn = timerArea.querySelector('#pomPause'), pomStopBtn = timerArea.querySelector('#pomStop')
+
+  function beep(){ try{ const ctx = new (window.AudioContext||window.webkitAudioContext)(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.type='sine'; o.frequency.value = 880; g.gain.value=0.02; o.connect(g); g.connect(ctx.destination); o.start(); setTimeout(()=>{ o.stop(); ctx.close() }, 300) }catch(e){} }
+
+  function stopPomodoro(){ if(pomTimer){ clearInterval(pomTimer); pomTimer=null; pomTaskId=null; pomDisplay.textContent='Idle'; pomBar.style.width='0%' } }
+  function startPomodoroFor(id, len=25*60){ stopPomodoro(); pomTaskId=id; pomRemaining=len; const start = Date.now(); pomDisplay.textContent = formatTime(pomRemaining); pomBar.style.width='0%'; pomTimer = setInterval(()=>{ pomRemaining--; const percent = ((len - pomRemaining)/len)*100; pomBar.style.width = percent+'%'; if(pomRemaining%60===0) pomDisplay.textContent = formatTime(pomRemaining); if(pomRemaining<=0){ stopPomodoro(); const t = tasks.find(x=>x.id===id); if(t){ t.pomSessions = (t.pomSessions||0)+1; t.pomTotalSeconds = (t.pomTotalSeconds||0)+len; saveTasks(tasks); renderList(); todoMsg.textContent='Pomodoro complete'; beep() } } }, 1000) }
+  function startPomodoroFor(id, len=25*60){ stopPomodoro(); pomTaskId=id; pomRemaining=len; const start = Date.now(); pomDisplay.textContent = formatTime(pomRemaining); pomBar.style.width='0%'; pomTimer = setInterval(()=>{ pomRemaining--; const percent = ((len - pomRemaining)/len)*100; pomBar.style.width = percent+'%'; if(pomRemaining%60===0) pomDisplay.textContent = formatTime(pomRemaining); if(pomRemaining<=0){ stopPomodoro(); const t = tasks.find(x=>x.id===id); if(t){ t.pomSessions = (t.pomSessions||0)+1; t.pomTotalSeconds = (t.pomTotalSeconds||0)+len; saveTasks(tasks); renderList(); todoMsg.textContent='Pomodoro complete'; pushPomSession(id,len); if(settings.sound) beep(); if(settings.notify && window.Notification){ if(Notification.permission==='granted'){ try{ new Notification('Pomodoro complete', { body: t.title || 'Task done' }) }catch(e){} } else { Notification.requestPermission() } } } } }, 1000) }
+  // start default: first task
+  pomStartBtn.addEventListener('click', ()=>{ const defaultTask = tasks[0]; if(!defaultTask){ todoMsg.textContent='No task to start'; return } startPomodoroFor(defaultTask.id) })
+  pomPauseBtn.addEventListener('click', ()=>{ if(pomTimer){ clearInterval(pomTimer); pomTimer=null; todoMsg.textContent='Paused' } else if(pomTaskId){ startPomodoroFor(pomTaskId, pomRemaining) } })
+  pomStopBtn.addEventListener('click', ()=>{ stopPomodoro(); todoMsg.textContent='Stopped' })
+
+  // initial render
+  renderList()
+}
+
 // initial
 applyTranslations()
 renderCategory('simple')
+
+// wire preview link
+const openTodoLink = document.getElementById('openTodo')
+if(openTodoLink){ openTodoLink.addEventListener('click', (e)=>{ e.preventDefault(); const li = document.querySelector('#catList li[data-cat="todo"]'); if(li) li.click() }) }
