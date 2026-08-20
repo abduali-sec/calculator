@@ -8,6 +8,22 @@ const titleEl = document.getElementById('title')
 const creditsEl = document.getElementById('credits')
 const degBtn = document.getElementById('degBtn')
 
+// global error handlers to surface issues in-page when console isn't available
+function showFatal(msg){ try{ const el = document.createElement('div'); el.style.position='fixed'; el.style.left='0'; el.style.top='0'; el.style.right='0'; el.style.background='#b00'; el.style.color='#fff'; el.style.padding='12px'; el.style.zIndex='99999'; el.style.fontFamily='monospace'; el.style.whiteSpace='pre-wrap'; el.textContent = 'ERROR: '+msg; document.body.appendChild(el); }catch(e){}
+}
+window.addEventListener('error', function(ev){ try{ const m = ev && ev.message ? ev.message : String(ev); showFatal('JS Error: '+m+'\n'+(ev.filename?ev.filename:'')+':'+(ev.lineno||'') ); }catch(e){} })
+window.addEventListener('unhandledrejection', function(ev){ try{ showFatal('Unhandled Rejection: '+ String(ev.reason)); }catch(e){} })
+
+// check essential DOM elements
+const _missing = []
+if(!catList) _missing.push('#catList')
+if(!panel) _missing.push('#panel')
+if(!langSelect) _missing.push('#langSelect')
+if(!titleEl) _missing.push('#title')
+if(!creditsEl) _missing.push('#credits')
+if(!degBtn) _missing.push('#degBtn')
+if(_missing.length){ showFatal('Missing DOM elements: '+_missing.join(', ')); throw new Error('Missing DOM elements: '+_missing.join(', ')) }
+
 let LANG = localStorage.getItem('calc_lang') || 'en'
 let useDeg = localStorage.getItem('calc_deg') === '1'
 
@@ -17,13 +33,24 @@ langSelect.addEventListener('change', e=>{ LANG=e.target.value; localStorage.set
 degBtn.addEventListener('click', ()=>{ useDeg = !useDeg; localStorage.setItem('calc_deg', useDeg? '1':'0'); applyTranslations() })
 
 // category switching
-catList.querySelectorAll('li').forEach(li=>{
-  li.addEventListener('click', ()=>{
-    catList.querySelectorAll('li').forEach(x=>x.classList.remove('active'))
-    li.classList.add('active')
-    renderCategory(li.dataset.cat)
-  })
-})
+if(catList){
+  try{
+    catList.querySelectorAll('li').forEach(li=>{
+      li.addEventListener('click', ()=>{
+        try{
+          catList.querySelectorAll('li').forEach(x=>x.classList.remove('active'))
+          li.classList.add('active')
+          renderCategory(li.dataset.cat)
+        }catch(e){ panel.innerHTML = `<div class="card"><h3>Error</h3><pre class="muted">${String(e)}</pre></div>` }
+      })
+    })
+  }catch(e){ if(panel) panel.innerHTML = `<div class="card"><h3>Init error</h3><pre class="muted">${String(e)}</pre></div>` }
+}else{
+  if(panel) panel.innerHTML = `<div class="card"><h3>Initialization error</h3><p class="muted">No #catList found in DOM</p></div>`
+}
+
+// small visible status so user knows script ran
+try{ const dbg = document.createElement('div'); dbg.id='debugStatus'; dbg.style.position='fixed'; dbg.style.right='12px'; dbg.style.bottom='12px'; dbg.style.padding='6px 8px'; dbg.style.background='#111'; dbg.style.color='#fff'; dbg.style.fontSize='12px'; dbg.style.borderRadius='6px'; dbg.style.opacity='0.8'; dbg.textContent='App loaded'; document.body.appendChild(dbg) }catch(e){}
 
 function clearPanel(){ panel.innerHTML=''; panel.classList.remove('enter-fade'); void panel.offsetWidth; panel.classList.add('enter-fade') }
 
@@ -588,7 +615,9 @@ function renderTodo(){
         <div class="row"><label>Шаблон:</label><select id="rbTemplate" class="field"><option value="">(нет)</option></select> <button id="rbSaveTemplate" class="btn">Сохранить как шаблон</button></div>
         <div class="row" style="margin-top:6px"><label>Частота:</label><select id="rbFreq" class="field"><option value="DAILY">Ежедневно</option><option value="WEEKLY">Еженедельно</option><option value="MONTHLY">Ежемесячно</option><option value="YEARLY">Ежегодно</option></select> <label>Интервал</label><input id="rbInterval" class="field" type="number" value="1" style="width:80px"/></div>
         <div class="row" style="margin-top:8px"><label>Weekdays:</label><div style="display:flex;gap:6px"><label><input type="checkbox" value="MO" class="rbDay"/>Mo</label><label><input type="checkbox" value="TU" class="rbDay"/>Tu</label><label><input type="checkbox" value="WE" class="rbDay"/>We</label><label><input type="checkbox" value="TH" class="rbDay"/>Th</label><label><input type="checkbox" value="FR" class="rbDay"/>Fr</label><label><input type="checkbox" value="SA" class="rbDay"/>Sa</label><label><input type="checkbox" value="SU" class="rbDay"/>Su</label></div></div>
+        <div class="row" style="margin-top:8px"><label>Дни месяца (BYMONTHDAY)</label><input id="rbMonthDay" class="field" placeholder="1,15,-1" style="width:140px"/> <label>SetPos</label><input id="rbSetPos" class="field" placeholder="1" style="width:80px"/></div>
         <div class="row" style="margin-top:8px"><label>Повторений (Count)</label><input id="rbCount" class="field" type="number" style="width:100px"/> <label>До (Until)</label><input id="rbUntil" type="date" class="field"/></div>
+        <div class="row" style="margin-top:8px"><label>Локаль</label><select id="rbLocale" class="field"><option value="ru-RU">Русский</option><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option></select></div>
         <div class="row" style="margin-top:8px"><button id="rbApply" class="btn">Apply</button> <button id="rbPreview" class="btn">Preview Next</button> <div id="rbPreviewOut" class="muted" style="margin-left:8px"></div></div>
       </div>
       <div class="row" style="margin-top:8px">
@@ -664,6 +693,9 @@ function renderTodo(){
   const rbDayChecks = Array.from(panel.querySelectorAll('.rbDay'))
   const rbCount = panel.querySelector('#rbCount')
   const rbUntil = panel.querySelector('#rbUntil')
+  const rbMonthDay = panel.querySelector('#rbMonthDay')
+  const rbSetPos = panel.querySelector('#rbSetPos')
+  const rbLocale = panel.querySelector('#rbLocale')
   const rbApply = panel.querySelector('#rbApply')
   const rbPreview = panel.querySelector('#rbPreview')
   const rbPreviewOut = panel.querySelector('#rbPreviewOut')
@@ -673,6 +705,8 @@ function renderTodo(){
     const opts = { freq: RRule[rbFreq.value], interval: parseInt(rbInterval.value)||1 }
     const byweekday = rbDayChecks.filter(c=>c.checked).map(c=>RRule[c.value])
     if(byweekday.length) opts.byweekday = byweekday
+    if(rbMonthDay && rbMonthDay.value) opts.bymonthday = rbMonthDay.value.split(',').map(s=>parseInt(s.trim())).filter(x=>!isNaN(x))
+    if(rbSetPos && rbSetPos.value) opts.bysetpos = parseInt(rbSetPos.value)
     if(rbCount.value) opts.count = parseInt(rbCount.value)
     if(rbUntil.value) opts.until = new Date(rbUntil.value)
     try{ const rule = new RRule(opts); tRecurrence.value = rule.toString(); rbPreviewOut.textContent = 'Applied'; }catch(e){ rbPreviewOut.textContent = 'Error' }
@@ -680,7 +714,9 @@ function renderTodo(){
   rbPreview.addEventListener('click', ()=>{
     try{ const txt = tRecurrence.value.trim(); if(!txt){ rbPreviewOut.textContent='No RRULE'; return }
       const rule = RRule.fromString(txt); const next = rule.all((date, i)=> i<5)
-      rbPreviewOut.textContent = next.map(d=>d.toISOString().slice(0,16).replace('T',' ')).join(', ')
+      const locale = (rbLocale && rbLocale.value) ? rbLocale.value : 'ru-RU'
+      const fmt = new Intl.DateTimeFormat(locale, { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+      rbPreviewOut.textContent = next.map(d=>fmt.format(d)).join(', ')
     }catch(e){ rbPreviewOut.textContent='Invalid' }
   })
 
@@ -706,6 +742,29 @@ function renderTodo(){
   // button to save token
   const saveTokenBtn = document.createElement('button'); saveTokenBtn.className='btn'; saveTokenBtn.textContent='Save GH Token'; saveTokenBtn.style.marginLeft='8px'; panel.querySelector('#addTask').parentNode.appendChild(saveTokenBtn)
   saveTokenBtn.addEventListener('click', ()=>{ const token = prompt('Paste GitHub token (PAT)'); if(!token) return; saveTokenEncrypted(token) })
+  // gh CLI helper: copy auth command (uses decrypted token if available)
+  const ghCliBtn = document.createElement('button'); ghCliBtn.className='btn'; ghCliBtn.textContent='Copy gh auth command'; ghCliBtn.style.marginLeft='8px'; panel.querySelector('#addTask').parentNode.appendChild(ghCliBtn)
+  ghCliBtn.addEventListener('click', async ()=>{
+    let token = await loadTokenDecrypted().catch(()=>null)
+    let cmd = ''
+    if(token){ // copy direct command with token
+      const safe = token.replace(/'/g, "'\\'\'")
+      cmd = `echo '${safe}' | gh auth login --with-token`
+    } else {
+      cmd = `# If you have gh installed, run:\n# gh auth login --with-token\n# Then paste your token when prompted, or run:\n# echo 'YOUR_TOKEN' | gh auth login --with-token`
+    }
+    try{ await navigator.clipboard.writeText(cmd); todoMsg.textContent='gh auth command copied' }catch(e){ todoMsg.textContent='Clipboard failed' }
+  })
+
+  // manual sync button for recurrences
+  const syncRecBtn = document.createElement('button'); syncRecBtn.className='btn'; syncRecBtn.textContent='Sync Recurrences'; syncRecBtn.style.marginLeft='8px'; panel.querySelector('#addTask').parentNode.appendChild(syncRecBtn)
+  syncRecBtn.addEventListener('click', ()=>{ expandRecurrences(); renderList(); todoMsg.textContent='Recurrences expanded' })
+
+  // auto-sync: run expandRecurrences periodically while page is open
+  try{ setInterval(()=>{ expandRecurrences(); }, 60*60*1000) // hourly
+  }catch(e){}
+  // also expand when tab becomes visible
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') expandRecurrences() })
 
   // file import handler
   fileImportBtn.addEventListener('click', ()=> filePicker.click())
@@ -742,10 +801,47 @@ function renderTodo(){
     // prepare datasets for Chart.js (stacked bars)
     const colors = ['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2']
     const datasets = taskIds.map((id,ti)=>({ label: tasksMap[id]||id, data: days.map(d=> Number((data[id][d]||0).toFixed(2))), backgroundColor: colors[ti%colors.length], stack: 'stack1' }))
+    // add filters container
+    const filterRow = document.createElement('div'); filterRow.style.marginBottom='8px'; filterRow.style.display='flex'; filterRow.style.flexWrap='wrap'; filterRow.style.gap='8px';
+    taskIds.forEach((id,ti)=>{
+      const cb = document.createElement('label'); cb.style.display='inline-flex'; cb.style.alignItems='center'; cb.style.gap='6px'; const inp = document.createElement('input'); inp.type='checkbox'; inp.checked=true; inp.dataset.idx = ti; cb.appendChild(inp); const lbl = document.createElement('span'); lbl.textContent = (tasksMap[id]||id); cb.appendChild(lbl); filterRow.appendChild(cb)
+    })
+    card.insertBefore(filterRow, cvs)
     // create chart
     if(window._pomChart){ window._pomChart.destroy(); window._pomChart = null }
-    const chart = new Chart(cvs, { type: 'bar', data: { labels: days, datasets }, options: { responsive:true, maintainAspectRatio:false, plugins: { legend:{ position:'bottom' }, tooltip:{ mode:'index', intersect:false }, zoom:{ zoom:{ wheel:{ enabled:true }, pinch:{ enabled:true }, mode:'x' }, pan:{ enabled:true, mode:'x' } } }, scales:{ x:{ stacked:true }, y:{ stacked:true, title:{ display:true, text:'Minutes' } } } })
+    const chartConfig = {
+      type: 'bar',
+      data: { labels: days, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: { mode: 'index', intersect: false },
+          zoom: {
+            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' },
+            pan: { enabled: true, mode: 'x' }
+          }
+        },
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, title: { display: true, text: 'Minutes' } }
+        }
+      }
+    }
+    const chart = new Chart(cvs, chartConfig)
     window._pomChart = chart
+    // wire dataset filter toggles
+    Array.from(filterRow.querySelectorAll('input[type="checkbox"]')).forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const idx = Number(cb.dataset.idx)
+        const meta = chart.getDatasetMeta(idx)
+        meta.hidden = !cb.checked
+        chart.update()
+      })
+    })
+    // add reset zoom button
+    const resetZoomBtn = document.createElement('button'); resetZoomBtn.className='btn'; resetZoomBtn.textContent='Reset Zoom'; resetZoomBtn.style.marginLeft='8px'; resetZoomBtn.addEventListener('click', ()=>{ if(chart.resetZoom) chart.resetZoom(); else todoMsg.textContent='Reset not available' })
     // legend already handled by chart, add export buttons
     const btnRow = document.createElement('div'); btnRow.style.marginTop='8px';
     const expCsv = document.createElement('button'); expCsv.className='btn'; expCsv.textContent='Export CSV'; expCsv.addEventListener('click', ()=>{
@@ -755,7 +851,7 @@ function renderTodo(){
       const blob = new Blob([csv], {type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='pom_history.csv'; a.click(); URL.revokeObjectURL(url)
     })
     const expPng = document.createElement('button'); expPng.className='btn'; expPng.textContent='Export PNG'; expPng.style.marginLeft='8px'; expPng.addEventListener('click', ()=>{ const url = chart.toBase64Image(); const a=document.createElement('a'); a.href = url; a.download='pom_history.png'; a.click() })
-    btnRow.appendChild(expCsv); btnRow.appendChild(expPng); card.appendChild(btnRow)
+    btnRow.appendChild(expCsv); btnRow.appendChild(expPng); btnRow.appendChild(resetZoomBtn); card.appendChild(btnRow)
   }
 
   function renderList(){
