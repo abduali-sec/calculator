@@ -7,9 +7,13 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app">
-    <header>
-      <h1 id="title">Calculator</h1>
+</div>
+  <div class="app shell">
+    <header class="app-header">
+      <div class="brand">
+        <h1 id="title">Calculator</h1>
+        <small id="version">v1.0.0.</small>
+      </div>
       <div class="controls">
         <select id="langSelect" aria-label="Language switch">
           <option value="en">English</option>
@@ -19,76 +23,34 @@
       </div>
     </header>
 
-    <main>
-      <section class="calculator">
-        <div class="display">
-          <input id="expr" type="text" readonly aria-label="Expression" />
-          <div id="result" class="result">0</div>
-        </div>
-        <div class="keys" id="keys">
-          <!-- row 1 -->
-          <button data-action="clear" data-i18n="btn.clear">C</button>
-          <button data-action="back" data-i18n="btn.back">⌫</button>
-          <button data-action="paren" data-i18n="btn.paren">( )</button>
-          <button data-value="/" data-i18n="btn.div">÷</button>
+    <main class="layout">
+      <nav class="sidebar">
+        <div class="big-section">1. Calculator</div>
+        <ul class="cats" id="catList">
+          <li data-cat="simple" class="active">🧮 Простой</li>
+          <li data-cat="scientific">🔬 Научный</li>
+          <li data-cat="financial">📊 Финансовый</li>
+          <li data-cat="programmer">🧑‍💻 Программистский</li>
+          <li data-cat="geometry">📐 Геометрический</li>
+          <li data-cat="algebra">🧮 Алгебраический</li>
+          <li data-cat="matrix">🧪 Матричный</li>
+          <li data-cat="converter">📏 Конвертер единиц</li>
+          <li data-cat="stats">📈 Статистический</li>
+          <li data-cat="graphical">📐 Графический</li>
+          <li data-cat="others">⋯ Другие</li>
+        </ul>
+        <div class="big-section">2. ToDo</div>
+        <div class="todo-preview">(будет позже)</div>
+      </nav>
 
-          <!-- row 2 -->
-          <button data-action="mem-clear" data-i18n="btn.mem_clear">MC</button>
-          <button data-action="mem-recall" data-i18n="btn.mem_recall">MR</button>
-          <button data-action="mem-plus" data-i18n="btn.mem_plus">M+</button>
-          <button data-value="*" data-i18n="btn.mul">×</button>
-
-          <!-- row 3 -->
-          <button data-value="7">7</button>
-          <button data-value="8">8</button>
-          <button data-value="9">9</button>
-          <button data-value="-" data-i18n="btn.sub">−</button>
-
-          <!-- row 4 -->
-          <button data-value="4">4</button>
-          <button data-value="5">5</button>
-          <button data-value="6">6</button>
-          <button data-value="+" data-i18n="btn.add">+</button>
-
-          <!-- row 5 -->
-          <button data-value="1">1</button>
-          <button data-value="2">2</button>
-          <button data-value="3">3</button>
-          <button data-action="pow" data-i18n="btn.pow">^</button>
-
-          <!-- row 6 -->
-          <button data-value="0">0</button>
-          <button data-value=".">.</button>
-          <button data-action="ans" data-i18n="btn.ans">ANS</button>
-          <button data-action="equals" data-i18n="btn.equals">=</button>
-
-          <!-- scientific -->
-          <button data-action="func" data-fn="sqrt" data-i18n="btn.sqrt">√</button>
-          <button data-action="func" data-fn="pow2" data-i18n="btn.pow2">x²</button>
-          <button data-action="func" data-fn="inv" data-i18n="btn.inv">1/x</button>
-          <button data-action="func" data-fn="percent" data-i18n="btn.percent">%</button>
-
-          <button data-action="func" data-fn="sin" data-i18n="btn.sin">sin</button>
-          <button data-action="func" data-fn="cos" data-i18n="btn.cos">cos</button>
-          <button data-action="func" data-fn="tan" data-i18n="btn.tan">tan</button>
-          <button data-action="func" data-fn="log" data-i18n="btn.log">log</button>
-
-          <button data-action="func" data-fn="ln" data-i18n="btn.ln">ln</button>
-          <button data-action="func" data-fn="abs" data-i18n="btn.abs">|x|</button>
-          <button data-action="history" data-i18n="btn.history">History</button>
-          <button data-action="clear-history" data-i18n="btn.clear_history">Clear Hist</button>
-        </div>
+      <section class="content" id="content">
+        <!-- animated container -->
+        <div id="panel" class="panel enter-fade"></div>
       </section>
-
-      <aside id="side">
-        <h2 id="historyTitle">History</h2>
-        <ul id="historyList"></ul>
-      </aside>
     </main>
 
-    <footer>
+    <footer class="app-footer">
       <small id="credits">Simple GUI calculator — English / Русский</small>
-      <small id="version">v1.0.0.</small>
     </footer>
   </div>
 
