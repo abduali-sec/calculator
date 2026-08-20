@@ -585,9 +585,10 @@ function renderTodo(){
         <button id="openRrule" class="btn">Open RRULE Builder</button>
       </div>
       <div id="rruleBuilder" style="display:none;margin-top:8px" class="card small">
-        <div class="row"><label>Freq:</label><select id="rbFreq" class="field"><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></select> <label>Interval</label><input id="rbInterval" class="field" type="number" value="1" style="width:80px"/></div>
+        <div class="row"><label>Шаблон:</label><select id="rbTemplate" class="field"><option value="">(нет)</option></select> <button id="rbSaveTemplate" class="btn">Сохранить как шаблон</button></div>
+        <div class="row" style="margin-top:6px"><label>Частота:</label><select id="rbFreq" class="field"><option value="DAILY">Ежедневно</option><option value="WEEKLY">Еженедельно</option><option value="MONTHLY">Ежемесячно</option><option value="YEARLY">Ежегодно</option></select> <label>Интервал</label><input id="rbInterval" class="field" type="number" value="1" style="width:80px"/></div>
         <div class="row" style="margin-top:8px"><label>Weekdays:</label><div style="display:flex;gap:6px"><label><input type="checkbox" value="MO" class="rbDay"/>Mo</label><label><input type="checkbox" value="TU" class="rbDay"/>Tu</label><label><input type="checkbox" value="WE" class="rbDay"/>We</label><label><input type="checkbox" value="TH" class="rbDay"/>Th</label><label><input type="checkbox" value="FR" class="rbDay"/>Fr</label><label><input type="checkbox" value="SA" class="rbDay"/>Sa</label><label><input type="checkbox" value="SU" class="rbDay"/>Su</label></div></div>
-        <div class="row" style="margin-top:8px"><label>Count</label><input id="rbCount" class="field" type="number" style="width:100px"/> <label>Until</label><input id="rbUntil" type="date" class="field"/></div>
+        <div class="row" style="margin-top:8px"><label>Повторений (Count)</label><input id="rbCount" class="field" type="number" style="width:100px"/> <label>До (Until)</label><input id="rbUntil" type="date" class="field"/></div>
         <div class="row" style="margin-top:8px"><button id="rbApply" class="btn">Apply</button> <button id="rbPreview" class="btn">Preview Next</button> <div id="rbPreviewOut" class="muted" style="margin-left:8px"></div></div>
       </div>
       <div class="row" style="margin-top:8px">
@@ -616,6 +617,28 @@ function renderTodo(){
   function loadTasks(){ try{ return JSON.parse(localStorage.getItem(KEY) || '[]') }catch(e){ return [] } }
   function saveTasks(tasks){ localStorage.setItem(KEY, JSON.stringify(tasks)) }
   let tasks = loadTasks()
+  // expand recurring tasks into occurrences for the upcoming window
+  function expandRecurrences(){
+    try{
+      if(typeof RRule === 'undefined') return
+      const now = new Date()
+      const end = new Date(now.getTime() + 30*24*3600*1000) // next 30 days
+      const parents = tasks.filter(t=>t.recurrence && !t.parentId)
+      parents.forEach(p=>{
+        try{
+          const rule = RRule.fromString(p.recurrence)
+          const occs = rule.between(now, end, true)
+          occs.forEach(d=>{
+            const iso = d.toISOString().slice(0,10)
+            const exists = tasks.some(x=> x.parentId===p.id && x.occurrenceDate===iso)
+            if(!exists){ const child = { id: p.id+'#'+iso, title: p.title+' (экземпляр)', notes: p.notes, type: p.type, priority: p.priority, due: iso, status:'todo', parentId: p.id, occurrenceDate: iso, created: new Date().toISOString(), generated:true, pomSessions:0 }; tasks.unshift(child) }
+          })
+        }catch(e){}
+      })
+      saveTasks(tasks)
+    }catch(e){}
+  }
+  expandRecurrences()
 
   const tTitle = panel.querySelector('#tTitle'), tNotes = panel.querySelector('#tNotes'), tType = panel.querySelector('#tType'), tPriority = panel.querySelector('#tPriority'), tDue = panel.querySelector('#tDue'), tAssignee = panel.querySelector('#tAssignee'), tProject = panel.querySelector('#tProject'), tRecurrence = panel.querySelector('#tRecurrence'), recDaily = panel.querySelector('#recDaily'), recWeekly = panel.querySelector('#recWeekly'), recWeekdays = panel.querySelector('#recWeekdays'), optSound = panel.querySelector('#optSound'), optNotify = panel.querySelector('#optNotify'), filePicker = panel.querySelector('#filePicker'), fileImportBtn = panel.querySelector('#fileImport'), pomHistoryBtn = panel.querySelector('#pomHistory'), todoMsg = panel.querySelector('#todoMsg'), todoPanel = panel.querySelector('#todoPanel')
 
@@ -661,6 +684,29 @@ function renderTodo(){
     }catch(e){ rbPreviewOut.textContent='Invalid' }
   })
 
+  // RRULE templates store
+  const TPL_KEY = 'rr_templates_v1'
+  function loadTemplates(){ try{ return JSON.parse(localStorage.getItem(TPL_KEY)||'[]') }catch(e){ return [] } }
+  function saveTemplates(t){ localStorage.setItem(TPL_KEY, JSON.stringify(t)) }
+  function refreshTemplateList(){ const sel = panel.querySelector('#rbTemplate'); sel.innerHTML = '<option value="">(нет)</option>'; const tpls = loadTemplates(); tpls.forEach(tp=>{ const opt = document.createElement('option'); opt.value = tp.value; opt.textContent = tp.name; sel.appendChild(opt) }) }
+  refreshTemplateList()
+  panel.querySelector('#rbSaveTemplate').addEventListener('click', ()=>{
+    const name = prompt('Название шаблона (на русском)')
+    if(!name) return
+    const val = tRecurrence.value || ''
+    const tpls = loadTemplates(); tpls.unshift({name, value: val}); saveTemplates(tpls); refreshTemplateList(); todoMsg.textContent='Шаблон сохранён'
+  })
+  panel.querySelector('#rbTemplate').addEventListener('change', (e)=>{ const v = e.target.value; if(v) tRecurrence.value = v })
+
+  // encrypted token storage using Web Crypto
+  const TOKEN_KEY = 'gh_token_enc_v1'
+  async function deriveKey(pass, salt){ const enc = new TextEncoder(); const keyMat = await crypto.subtle.importKey('raw', enc.encode(pass), {name:'PBKDF2'}, false, ['deriveKey']); return crypto.subtle.deriveKey({ name:'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' }, keyMat, { name:'AES-GCM', length: 256 }, false, ['encrypt','decrypt']) }
+  async function saveTokenEncrypted(token){ const pass = prompt('Enter passphrase to encrypt token'); if(!pass) return; const salt = crypto.getRandomValues(new Uint8Array(16)); const key = await deriveKey(pass, salt); const iv = crypto.getRandomValues(new Uint8Array(12)); const enc = new TextEncoder(); const cipher = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc.encode(token)); const stored = { salt: Array.from(salt), iv: Array.from(iv), data: Array.from(new Uint8Array(cipher)) }; localStorage.setItem(TOKEN_KEY, JSON.stringify(stored)); todoMsg.textContent='Token saved (encrypted)'; }
+  async function loadTokenDecrypted(){ try{ const raw = localStorage.getItem(TOKEN_KEY); if(!raw) return null; const obj = JSON.parse(raw); const pass = prompt('Enter passphrase to decrypt token'); if(!pass) return null; const salt = new Uint8Array(obj.salt); const iv = new Uint8Array(obj.iv); const key = await deriveKey(pass, salt); const dec = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, new Uint8Array(obj.data)); return new TextDecoder().decode(dec); }catch(e){ return null } }
+  // button to save token
+  const saveTokenBtn = document.createElement('button'); saveTokenBtn.className='btn'; saveTokenBtn.textContent='Save GH Token'; saveTokenBtn.style.marginLeft='8px'; panel.querySelector('#addTask').parentNode.appendChild(saveTokenBtn)
+  saveTokenBtn.addEventListener('click', ()=>{ const token = prompt('Paste GitHub token (PAT)'); if(!token) return; saveTokenEncrypted(token) })
+
   // file import handler
   fileImportBtn.addEventListener('click', ()=> filePicker.click())
   filePicker.addEventListener('change', (ev)=>{
@@ -692,37 +738,24 @@ function renderTodo(){
     const data = {} // data[taskId][day]=minutes
     taskIds.forEach(id=>{ data[id]={}; days.forEach(d=>data[id][d]=0) })
     pomHistory.forEach(s=>{ const d = new Date(s.ts).toISOString().slice(0,10); data[s.taskId][d] = (data[s.taskId][d]||0) + s.seconds/60 })
-    const W = cvs.width, H = cvs.height; ctx.clearRect(0,0,W,H);
-    if(days.length===0){ ctx.fillText('No history', 10,20); return }
-    // draw grouped bars per day, stacked by task
-    const groupW = Math.max(30, Math.floor((W-40)/days.length))
-    const maxv = Math.max(...days.map(d=> taskIds.reduce((s,id)=>s + (data[id][d]||0),0) ))
+    if(days.length===0){ const msg = document.createElement('div'); msg.className='muted'; msg.textContent='No history'; card.appendChild(msg); return }
+    // prepare datasets for Chart.js (stacked bars)
     const colors = ['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2']
-    days.forEach((d,i)=>{
-      let x = 20 + i*groupW
-      let yBottom = H-30
-      let stack = 0
-      taskIds.forEach((id,ti)=>{
-        const val = data[id][d]||0
-        if(val<=0) return
-        const h = Math.round((val/maxv) * (H-60))
-        ctx.fillStyle = colors[ti % colors.length]
-        ctx.fillRect(x, yBottom-h, groupW-6, h)
-        yBottom -= h
-      })
-      ctx.fillStyle='#666'; ctx.fillText(d, x, H-8)
-    })
-    // add legend and export CSV
-    const legend = document.createElement('div'); legend.style.marginTop='8px'; legend.innerHTML = '<strong>Legend</strong> '
-    taskIds.forEach((id,ti)=>{ const span = document.createElement('div'); span.style.display='inline-block'; span.style.marginRight='8px'; span.innerHTML = `<span style="display:inline-block;width:12px;height:12px;background:${colors[ti%colors.length]};vertical-align:middle;margin-right:4px"></span>${tasksMap[id]||id}`; legend.appendChild(span) })
-    card.appendChild(legend)
-    const expBtn = document.createElement('button'); expBtn.className='btn'; expBtn.textContent='Export CSV'; expBtn.style.marginTop='8px'; expBtn.addEventListener('click', ()=>{
+    const datasets = taskIds.map((id,ti)=>({ label: tasksMap[id]||id, data: days.map(d=> Number((data[id][d]||0).toFixed(2))), backgroundColor: colors[ti%colors.length], stack: 'stack1' }))
+    // create chart
+    if(window._pomChart){ window._pomChart.destroy(); window._pomChart = null }
+    const chart = new Chart(cvs, { type: 'bar', data: { labels: days, datasets }, options: { responsive:true, maintainAspectRatio:false, plugins: { legend:{ position:'bottom' }, tooltip:{ mode:'index', intersect:false }, zoom:{ zoom:{ wheel:{ enabled:true }, pinch:{ enabled:true }, mode:'x' }, pan:{ enabled:true, mode:'x' } } }, scales:{ x:{ stacked:true }, y:{ stacked:true, title:{ display:true, text:'Minutes' } } } })
+    window._pomChart = chart
+    // legend already handled by chart, add export buttons
+    const btnRow = document.createElement('div'); btnRow.style.marginTop='8px';
+    const expCsv = document.createElement('button'); expCsv.className='btn'; expCsv.textContent='Export CSV'; expCsv.addEventListener('click', ()=>{
       const cols = ['date'].concat(taskIds.map(id=>`task_${id}`))
       const rows = days.map(d=> [d].concat(taskIds.map(id=> (data[id][d]||0).toFixed(2) )) )
       const csv = [cols.join(',')].concat(rows.map(r=> r.join(','))).join('\n')
       const blob = new Blob([csv], {type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='pom_history.csv'; a.click(); URL.revokeObjectURL(url)
     })
-    card.appendChild(expBtn)
+    const expPng = document.createElement('button'); expPng.className='btn'; expPng.textContent='Export PNG'; expPng.style.marginLeft='8px'; expPng.addEventListener('click', ()=>{ const url = chart.toBase64Image(); const a=document.createElement('a'); a.href = url; a.download='pom_history.png'; a.click() })
+    btnRow.appendChild(expCsv); btnRow.appendChild(expPng); card.appendChild(btnRow)
   }
 
   function renderList(){
@@ -758,7 +791,7 @@ function renderTodo(){
     let recur = null
     if(recurRaw){ try{ if(typeof RRule !== 'undefined'){ const r = RRule.fromString(recurRaw); recur = r.toString() } else { recur = recurRaw } }catch(e){ todoMsg.textContent='Bad recurrence format'; return } }
     const obj = { id: 't'+Date.now(), title, notes, type: tType.value, priority: tPriority.value, due: tDue.value||null, assignee: tAssignee.value||null, project: tProject.value||null, recurrence: recur, status:'todo', created: new Date().toISOString(), pomSessions:0, pomTotalSeconds:0 }
-    tasks.unshift(obj); saveTasks(tasks); renderList(); todoMsg.textContent='Added'; tTitle.value=''; tNotes.value=''
+    tasks.unshift(obj); saveTasks(tasks); expandRecurrences(); renderList(); todoMsg.textContent='Added'; tTitle.value=''; tNotes.value=''
   }
   panel.querySelector('#addTask').addEventListener('click', addTask)
 
@@ -788,11 +821,11 @@ function renderTodo(){
         const frag = input.split('#share=')[1]
         const json = atob(decodeURIComponent(frag))
         const arr = JSON.parse(json)
-        tasks = arr.concat(tasks); saveTasks(tasks); renderList(); todoMsg.textContent='Imported from share URL'; return
+        tasks = arr.concat(tasks); saveTasks(tasks); expandRecurrences(); renderList(); todoMsg.textContent='Imported from share URL'; return
       }
       if(input.trim().startsWith('{') || input.trim().startsWith('[')){
         const arr = JSON.parse(input)
-        tasks = arr.concat(tasks); saveTasks(tasks); renderList(); todoMsg.textContent='Imported JSON'; return
+        tasks = arr.concat(tasks); saveTasks(tasks); expandRecurrences(); renderList(); todoMsg.textContent='Imported JSON'; return
       }
       const lines = input.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length)
       if(lines[0].includes(',')){
@@ -805,16 +838,16 @@ function renderTodo(){
           obj.id = obj.id || ('t'+Date.now()+i)
           out.push(obj)
         }
-        tasks = out.concat(tasks); saveTasks(tasks); renderList(); todoMsg.textContent='Imported CSV'; return
+        tasks = out.concat(tasks); saveTasks(tasks); expandRecurrences(); renderList(); todoMsg.textContent='Imported CSV'; return
       }
     }catch(e){ todoMsg.textContent='Import error' }
   }) }
-  if(shareBtn){ shareBtn.addEventListener('click', ()=>{
-    // fallback share: first try Gist if token provided, else copy fragment URL
-    const token = prompt('Enter GitHub token for Gist upload (leave empty to use share URL)')
+  if(shareBtn){ shareBtn.addEventListener('click', async ()=>{
     const json = JSON.stringify(tasks)
+    // try load encrypted token
+    let token = await loadTokenDecrypted().catch(()=>null)
+    if(!token){ token = prompt('Enter GitHub token for Gist upload (leave empty to use share URL)') }
     if(token){
-      // create gist
       fetch('https://api.github.com/gists', { method:'POST', headers: { Authorization: 'token '+token, 'Content-Type':'application/json' }, body: JSON.stringify({ public:false, files: { 'tasks.json': { content: json } }, description: 'Shared tasks' }) }).then(r=>r.json()).then(j=>{
         if(j && j.html_url){ navigator.clipboard.writeText(j.html_url); todoMsg.textContent='Gist created and URL copied' } else { todoMsg.textContent='Gist failed' }
       }).catch(e=>{ todoMsg.textContent='Gist error' })
@@ -883,7 +916,6 @@ function renderTodo(){
   function beep(){ try{ const ctx = new (window.AudioContext||window.webkitAudioContext)(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.type='sine'; o.frequency.value = 880; g.gain.value=0.02; o.connect(g); g.connect(ctx.destination); o.start(); setTimeout(()=>{ o.stop(); ctx.close() }, 300) }catch(e){} }
 
   function stopPomodoro(){ if(pomTimer){ clearInterval(pomTimer); pomTimer=null; pomTaskId=null; pomDisplay.textContent='Idle'; pomBar.style.width='0%' } }
-  function startPomodoroFor(id, len=25*60){ stopPomodoro(); pomTaskId=id; pomRemaining=len; const start = Date.now(); pomDisplay.textContent = formatTime(pomRemaining); pomBar.style.width='0%'; pomTimer = setInterval(()=>{ pomRemaining--; const percent = ((len - pomRemaining)/len)*100; pomBar.style.width = percent+'%'; if(pomRemaining%60===0) pomDisplay.textContent = formatTime(pomRemaining); if(pomRemaining<=0){ stopPomodoro(); const t = tasks.find(x=>x.id===id); if(t){ t.pomSessions = (t.pomSessions||0)+1; t.pomTotalSeconds = (t.pomTotalSeconds||0)+len; saveTasks(tasks); renderList(); todoMsg.textContent='Pomodoro complete'; beep() } } }, 1000) }
   function startPomodoroFor(id, len=25*60){ stopPomodoro(); pomTaskId=id; pomRemaining=len; const start = Date.now(); pomDisplay.textContent = formatTime(pomRemaining); pomBar.style.width='0%'; pomTimer = setInterval(()=>{ pomRemaining--; const percent = ((len - pomRemaining)/len)*100; pomBar.style.width = percent+'%'; if(pomRemaining%60===0) pomDisplay.textContent = formatTime(pomRemaining); if(pomRemaining<=0){ stopPomodoro(); const t = tasks.find(x=>x.id===id); if(t){ t.pomSessions = (t.pomSessions||0)+1; t.pomTotalSeconds = (t.pomTotalSeconds||0)+len; saveTasks(tasks); renderList(); todoMsg.textContent='Pomodoro complete'; pushPomSession(id,len); if(settings.sound) beep(); if(settings.notify && window.Notification){ if(Notification.permission==='granted'){ try{ new Notification('Pomodoro complete', { body: t.title || 'Task done' }) }catch(e){} } else { Notification.requestPermission() } } } } }, 1000) }
   // start default: first task
   pomStartBtn.addEventListener('click', ()=>{ const defaultTask = tasks[0]; if(!defaultTask){ todoMsg.textContent='No task to start'; return } startPomodoroFor(defaultTask.id) })
